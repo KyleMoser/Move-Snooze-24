@@ -2,7 +2,10 @@ package parser;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -19,205 +22,222 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import sadeh.ActicalEpoch;
 
 public class ActicalExcelParser {
-	//The index of the row with the time when the data point was recorded
+	// The index of the row with the time when the data point was recorded
 	private static final int EPOCH_TIME_INDEX = 0;
-	//Index of the header row containing the data column headers
+	// Index of the header row containing the data column headers
 	private static final int HEADER_ROW_INDEX = 2;
-	//The data doesn't start immediately after the header row
+	// The data doesn't start immediately after the header row
 	private static final int BEGIN_DATA_ROW_INDEX = 15;
-	//Times are formatted similarly to military time e.g. 23:59:00
+	// Times are formatted similarly to military time e.g. 23:59:00
 	private static final SimpleDateFormat acticalTimeFormat = new SimpleDateFormat("HH:mm:ss");
-	//Workbook name where the data is stored
-	private static final String actigraphWorkbook = "Data from ActiCal";	
+	// Workbook name where the data is stored
+	private static final String actigraphWorkbook = "Data from ActiCal";
 
 	/**
-	 * Parses an excel document containing Actigraph data representing sleep activity for a participant.
-	 * Each document only contains data about a single participant but will contain multiple columns,
-	 * one for each day when data was collected. The data is an integer representing activity level and
-	 * it is collected each minute, one excel row for each minute of the day.
+	 * Parses an excel document containing Actigraph data representing sleep
+	 * activity for a participant. Each document only contains data about a
+	 * single participant but will contain multiple columns, one for each day
+	 * when data was collected. The data is an integer representing activity
+	 * level and it is collected each minute, one excel row for each minute of
+	 * the day.
 	 *
-	 * @param path Path to the Excel document
+	 * @param path
+	 *            Path to the Excel document
 	 * @return
+	 * @throws IOException
 	 * @throws Exception
 	 */
-	public static List<ActicalEpoch> parseSadehExcelDocument(String path, String assessmentPoint) throws Exception {
-		File excel = new File(path);
-		FileInputStream fis = new FileInputStream(excel);
+	public static List<ActicalEpoch> parseSadehExcelDocument(File excel, String assessmentPoint)
+			throws ParticipantDataParseException {
 		List<ActicalEpoch> epochs = new ArrayList<>();
+		XSSFWorkbook wb = null;
 		
-		XSSFWorkbook wb = new XSSFWorkbook(fis);
-		XSSFSheet ws = wb.getSheet(actigraphWorkbook);
-
-		//The epoch data is in non-contiguous columns with known names, this finds the columns indices.
-		List<ActigraphDataHeader> headers = parseHeader(ws);
-		//for (ActigraphDataHeader h : headers)
-			//System.out.println("Header weekday: " + h.getDayOfWeek());
-		
-		//Parse the sleep data from the body rows of the excel document
+		// Parse the sleep data from the body rows of the excel document
 		XSSFRow row = null;
-		String time = null; //the time an epoch of activity data was collected
+		String time = null; // the time an epoch of activity data was collected
 		int rowIdx = BEGIN_DATA_ROW_INDEX;
 		int totalEpochs = 0;
-		
-		do {
-			row = ws.getRow(rowIdx);
+
+		try {
+			String participant = getParticipantName(excel);
+			System.out.println(participant);
+			FileInputStream fis = new FileInputStream(excel);
+			wb = new XSSFWorkbook(fis);
+			XSSFSheet ws = wb.getSheet(actigraphWorkbook);
 			
-			if (row != null){
-				time = parseTimeActivityRecorded(row);
-				
-				if (time != null){
-					totalEpochs++;
-					for (ActigraphDataHeader header : headers){
-						XSSFCell cell = row.getCell(header.getColumnIndex());
-						if (!isCellEmpty(cell)){
-							String dataCollectionDay = header.getDayOfWeek();
-							int activityLevel = (int) cell.getNumericCellValue();
-							ActicalEpoch epoch = new ActicalEpoch();
-							epoch.setActivityLevel(activityLevel);
-							epoch.setAssessmentPoint(assessmentPoint);
-							epoch.setDayOfWeek(dataCollectionDay);
-							int minuteOfDay = getMinuteOfDay(time);
-							epoch.setMinuteOfDay(minuteOfDay);
-							
-							LocalDate ld = header.getDate();
-							LocalDateTime epochTime = getLocalDateTime(ld, time);
-							epoch.setDateTime(epochTime);
-							DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
-							String dt = ld.format(formatter);
-							epoch.setDate(ld);
-							epochs.add(epoch);
-							
-							//System.out.println("Excel row " + (rowIdx+1) + ", " + dataCollectionDay 
-							//		+ "(" + dt + ") at " + time + "(" + minuteOfDay + ") activity level was " + activityLevel);
+			// The epoch data is in non-contiguous columns with known names, this finds the columns indices.
+			List<ActigraphDataHeader> headers = parseHeader(ws);
+			
+			do {
+				row = ws.getRow(rowIdx);
+
+				if (row != null) {
+					time = parseTimeActivityRecorded(row);
+
+					if (time != null) {
+
+						for (ActigraphDataHeader header : headers) {
+							XSSFCell cell = row.getCell(header.getColumnIndex());
+							if (!isCellEmpty(cell)) {
+								String dataCollectionDay = header.getDayOfWeek();
+								int activityLevel = (int) cell.getNumericCellValue();
+								ActicalEpoch epoch = new ActicalEpoch();
+								epoch.setActivityLevel(activityLevel);
+								epoch.setAssessmentPoint(assessmentPoint);
+								epoch.setDayOfWeek(dataCollectionDay);
+
+								LocalDate ld = header.getDate();
+								LocalDateTime epochTime = getLocalDateTime(ld, time);
+								epoch.setDateTime(epochTime);
+								epoch.setDate(ld);
+								epochs.add(epoch);
+								totalEpochs++;
+							}
 						}
 					}
 				}
-			}
-			rowIdx++;
-		} while (row != null && time != null);
-		
+				rowIdx++;
+			} while (row != null && time != null);
+
+		} catch (FileNotFoundException ex) {
+			throw new ParticipantDataParseException("File " + excel.getAbsolutePath()
+			+ " cannot be opened, it must be manually processed.");
+		} catch (IOException io) {
+			throw new ParticipantDataParseException("IO error occurred processing the file " + excel.getAbsolutePath()
+			+ ", it must be manually processed.");
+		} finally {
+			if (wb != null)
+				try {
+					wb.close();
+				} catch (IOException e) {
+					throw new ParticipantDataParseException("IO error occurred processing the file " + excel.getAbsolutePath()
+						+ ", it must be manually processed.");
+				}
+		}
+
 		System.out.println("Total epochs in document: " + totalEpochs);
-		wb.close();
 		return epochs;
 	}
 	
-	private static int getMinuteOfDay(String actigraphTime){
-		try {
-			String[] ata = actigraphTime.split(":");
-			int hour = Integer.parseInt(ata[0]);
-			int minute = Integer.parseInt(ata[1]);
-			return (hour * 60) + minute;
-		} catch (Exception e){}
-		
-		return -1;
+	private static String getParticipantName(File file){
+		String[] names = file.getName().split("\\.");
+		return names[0];
 	}
-	
-	private static LocalDateTime getLocalDateTime(LocalDate ld, String actigraphTime){
+
+	private static LocalDateTime getLocalDateTime(LocalDate ld, String actigraphTime) {
 		try {
 			String[] ata = actigraphTime.split(":");
 			int hour = Integer.parseInt(ata[0]);
 			int minute = Integer.parseInt(ata[1]);
-			return ld.atTime(hour, minute);
-		} catch (Exception e){}
-		
+			int second = Integer.parseInt(ata[2]);
+			return ld.atTime(hour, minute, second);
+		} catch (Exception e) {
+		}
+
 		return null;
 	}
-	
+
 	@SuppressWarnings("deprecation")
 	public static boolean isCellEmpty(final XSSFCell cell) {
-	    if (cell == null || cell.getCellType() == Cell.CELL_TYPE_BLANK) {
-	        return true;
-	    }
+		if (cell == null || cell.getCellType() == Cell.CELL_TYPE_BLANK) {
+			return true;
+		}
 
-	    if (cell.getCellType() == Cell.CELL_TYPE_STRING && cell.getStringCellValue().isEmpty()) {
-	        return true;
-	    }
+		if (cell.getCellType() == Cell.CELL_TYPE_STRING && cell.getStringCellValue().isEmpty()) {
+			return true;
+		}
 
-	    return false;
+		return false;
 	}
-	
+
 	/**
-	 * Each row contains a time in the format HH:mm:ss (participant data is collected once per minute).
-	 * This parses the value from the Excel document.
+	 * Each row contains a time in the format HH:mm:ss (participant data is
+	 * collected once per minute). This parses the value from the Excel
+	 * document.
 	 * 
 	 * @param row
 	 * @return
 	 */
-	private static String parseTimeActivityRecorded(XSSFRow row){
+	private static String parseTimeActivityRecorded(XSSFRow row) {
 		XSSFCell cell = row.getCell(EPOCH_TIME_INDEX);
 		Date date = parseDate(cell);
-		
-		if (date != null){
+
+		if (date != null) {
 			return acticalTimeFormat.format(date);
 		} else {
 			return null;
 		}
 	}
-	
-	private static Date parseDate(XSSFCell cell){
-		if (!isCellEmpty(cell)){
-			return cell.getDateCellValue();        
+
+	private static Date parseDate(XSSFCell cell) {
+		if (!isCellEmpty(cell)) {
+			return cell.getDateCellValue();
 		} else {
 			return null;
 		}
 	}
-	
-	private static List<ActigraphDataHeader> parseHeader(XSSFSheet ws){
-		List<ActigraphDataHeader> headers = new ArrayList<>(8); //There should be no more than 8 columns
+
+	private static List<ActigraphDataHeader> parseHeader(XSSFSheet ws) {
+		List<ActigraphDataHeader> headers = new ArrayList<>(8); // There should
+																// be no more
+																// than 8
+																// columns
 		XSSFRow row = ws.getRow(HEADER_ROW_INDEX);
 		XSSFRow dateRow = ws.getRow(BEGIN_DATA_ROW_INDEX);
-		
-		int maxColIdx = 26; //There cannot be headers past this column
-		
-		for (int i = 0; i < maxColIdx; i++){
+
+		int maxColIdx = 26; // There cannot be headers past this column
+
+		for (int i = 0; i < maxColIdx; i++) {
 			XSSFCell cell = row.getCell(i);
-			if (cell != null){
+			if (cell != null) {
 				try {
 					String value = cell.getStringCellValue();
-					if (value != null && !value.equalsIgnoreCase("") && getHeaderName(value) != null){
+					if (value != null && !value.equalsIgnoreCase("") && getHeaderName(value) != null) {
 						ActigraphDataHeader header = new ActigraphDataHeader();
-						
-						if (i - 2 >= 1){
-							Date date = parseDate(dateRow.getCell(i-2));
+
+						if (i - 2 >= 1) {
+							Date date = parseDate(dateRow.getCell(i - 2));
 							LocalDate ld = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 							header.setDate(ld);
-						} else{
+						} else {
 							throw new Exception("Date cannot be found for header column " + i);
 						}
-						
+
 						header.setColumnIndex(i);
 						header.setHeader(value);
 						header.setDayOfWeek(getHeaderName(value));
 						headers.add(header);
 					}
-				} catch (Exception e){}
+				} catch (Exception e) {
+				}
 			}
 		}
-		
+
 		return headers;
 	}
-	
+
 	/**
-	 * If the name is a day of the week, returns it in standard format, otherwise, returns null.
+	 * If the name is a day of the week, returns it in standard format,
+	 * otherwise, returns null.
 	 */
-	public static String getHeaderName(String name){
+	public static String getHeaderName(String name) {
 		String temp = name.toLowerCase();
-		if (temp.contains("mon")){
+		if (temp.contains("mon")) {
 			return "Monday";
-		} else if (temp.contains("tue")){
+		} else if (temp.contains("tue")) {
 			return "Tuesday";
-		} else if (temp.contains("wed")){
+		} else if (temp.contains("wed")) {
 			return "Wednesday";
-		} else if (temp.contains("thu")){
+		} else if (temp.contains("thu")) {
 			return "Thursday";
-		} else if (temp.contains("fri")){
+		} else if (temp.contains("fri")) {
 			return "Friday";
-		} else if (temp.contains("sat")){
+		} else if (temp.contains("sat")) {
 			return "Saturday";
-		} else if (temp.contains("sun")){
+		} else if (temp.contains("sun")) {
 			return "Sunday";
 		}
-		
+
 		return null;
 	}
 
@@ -238,28 +258,35 @@ public class ActicalExcelParser {
 		String dayOfWeek;
 		int columnIndex;
 		LocalDate date;
-		
+
 		public LocalDate getDate() {
 			return date;
 		}
+
 		public void setDate(LocalDate date) {
 			this.date = date;
 		}
+
 		public String getHeader() {
 			return header;
 		}
+
 		public void setHeader(String header) {
 			this.header = header;
 		}
+
 		public String getDayOfWeek() {
 			return dayOfWeek;
 		}
+
 		public void setDayOfWeek(String dayOfWeek) {
 			this.dayOfWeek = dayOfWeek;
 		}
+
 		public int getColumnIndex() {
 			return columnIndex;
 		}
+
 		public void setColumnIndex(int columnIndex) {
 			this.columnIndex = columnIndex;
 		}

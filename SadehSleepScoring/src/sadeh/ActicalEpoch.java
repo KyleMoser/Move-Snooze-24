@@ -21,6 +21,7 @@ public class ActicalEpoch {
 	//data is collected and analyzed for each patient at the baseline (initial collection), 6 months, and 12 months
 	//and different reports may be produced depending on when the data for this epoch was collected.
 	protected String assessmentPoint; 
+	protected String participant;
 	protected int minuteOfDay; //0 through 59 for first hour; 60 through 119 for second hour, etc
 	protected String dayOfWeek; //Monday, Tuesday, ...
 	protected int activityLevel; //An unbounded, non-negative number representing wearer's activity, 0 means not moving
@@ -28,6 +29,14 @@ public class ActicalEpoch {
 	protected LocalDateTime dateTime;
 	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 	
+	public String getParticipant() {
+		return participant;
+	}
+
+	public void setParticipant(String participant) {
+		this.participant = participant;
+	}
+
 	@Override
 	public String toString(){
 		String fdt = dateTime.format(formatter);
