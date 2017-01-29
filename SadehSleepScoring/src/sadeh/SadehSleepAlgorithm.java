@@ -19,6 +19,8 @@ public class SadehSleepAlgorithm {
 		int[] window = new int[WINDOW];
 		int middleEpoch = WINDOW / 2;
 		
+		window[middleEpoch] = sortedEpochs.get(currentIndex).getActivityLevel();
+		
 		for (int i = 1; i <= WINDOW_BEFORE; i++){
 			int epochIndex = currentIndex - i;
 			
@@ -82,9 +84,7 @@ public class SadehSleepAlgorithm {
 		    dubs[i] = window[i];
 		}
 		
-		//printWindow("Standard deviation input: ", window);
 		StandardDeviation sd = new StandardDeviation();
-		sd.setBiasCorrected(false);
 		return sd.evaluate(dubs);
 	}
 	

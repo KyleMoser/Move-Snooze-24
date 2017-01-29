@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import parser.ActicalExcelParser;
 import parser.ParticipantDataParseException;
+import sadeh.SadehSleepAlgorithm.SLEEP_PROBABILITY;
 
 /**
  * Processes excel documents containing Actical data. An actical is a wrist or ankle worn
@@ -23,23 +24,29 @@ public class SadehMain {
 	public static void main(String[] args){
 		String path = args[0];
 		List<String> errorReport = new ArrayList<String>();
+		File excel = new File(path);
 		
 		try {
-			File excel = new File(path);
-			List<ActicalEpoch> participantEpochs = ActicalExcelParser.parseSadehExcelDocument(excel, "baseline");
-			//Sort the Actical data by date, earlier dates first
-			Collections.sort(participantEpochs, (a, b) -> a.getDateTime().compareTo(b.getDateTime()));
-			participantEpochs.forEach(epoch -> System.out.println(epoch));
-			
-			for (int i = 0; i < participantEpochs.size(); i++){
-				if (!validateEpoch(participantEpochs, i))
-					throw new ParticipantDataParseException("File format is invalid for the file " + excel.getAbsolutePath()
-							+ ", it must be manually processed.");
-				SadehSleepAlgorithm.sadeh(participantEpochs, i);
-			}
+			processParticipant(excel);
 		} catch (ParticipantDataParseException e) {
 			errorReport.add(e.getMessage());
 			System.out.println(e.getMessage());
+		}
+	}
+	
+	public static void processParticipant(File excel) throws ParticipantDataParseException{
+		List<ActicalEpoch> participantEpochs = ActicalExcelParser.parseSadehExcelDocument(excel, "baseline");
+		//Sort the Actical data by date, earlier dates first
+		Collections.sort(participantEpochs, (a, b) -> a.getDateTime().compareTo(b.getDateTime()));
+		participantEpochs.forEach(epoch -> System.out.println(epoch));
+		
+		for (int i = 0; i < participantEpochs.size(); i++){
+			if (!validateEpoch(participantEpochs, i))
+				throw new ParticipantDataParseException("File format is invalid for the file " + excel.getAbsolutePath()
+						+ ", it must be manually processed.");
+			
+			SLEEP_PROBABILITY sleepState = SadehSleepAlgorithm.sadeh(participantEpochs, i);
+			ActicalEpoch epoch = participantEpochs.get(i);
 		}
 	}
 	
