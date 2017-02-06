@@ -1,18 +1,58 @@
 package sadeh;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 
-public class SadehSleepAlgorithm {
+import excel.ParticipantDataParseException;
+
+public class SleepAnalysis {
 	public static final int WINDOW = 11;
 	public static final int WINDOW_BEFORE = 5;
 	public static final int WINDOW_AFTER = 5;
+	
+	enum ACTIVITY_LEVEL{
+		ASLEEP,
+		NAPPING,
+		SEDENTARY,
+		LIGHT,
+		MVPA
+	}
 
 	enum SLEEP_PROBABILITY{
 		ASLEEP,
 		AWAKE
+	}
+	
+	public static boolean isDaytime(LocalDateTime ldt){
+		return ldt.getHour() >= 9 && ldt.getHour() <= 17;
+	}
+	
+	public static ACTIVITY_LEVEL getActivityThreshold(ActicalEpoch epoch) 
+			throws ParticipantDataParseException{
+		boolean asleep = epoch.isAsleep();
+		boolean daytime = epoch.isDaytime();
+		int level = epoch.getActivityLevel();
+		if (asleep){
+			if (daytime){
+				return ACTIVITY_LEVEL.NAPPING;
+			} else{
+				return ACTIVITY_LEVEL.ASLEEP;
+			}
+		}
+		
+		if (level >= 0 && level <= 40){
+			return ACTIVITY_LEVEL.SEDENTARY;
+		} else if (level >= 41 && level <= 2200){
+			return ACTIVITY_LEVEL.LIGHT;
+		} else if (level >= 2201){
+			return ACTIVITY_LEVEL.MVPA;
+		} else{
+			throw new ParticipantDataParseException("Activity level of " + level + " is not within expected range"
+					+ " for paticipant " + epoch.getParticipant());
+		}
 	}
 	
 	public static SLEEP_PROBABILITY sadeh(List<ActicalEpoch> sortedEpochs, int currentIndex){

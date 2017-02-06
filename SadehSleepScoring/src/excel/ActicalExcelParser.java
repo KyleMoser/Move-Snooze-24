@@ -1,4 +1,4 @@
-package parser;
+package excel;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,7 +47,7 @@ public class ActicalExcelParser {
 	 * @throws IOException
 	 * @throws Exception
 	 */
-	public static List<ActicalEpoch> parseSadehExcelDocument(File excel, String assessmentPoint)
+	public static List<ActicalEpoch> parseSadehExcelDocument(File excel)
 			throws ParticipantDataParseException {
 		List<ActicalEpoch> epochs = new ArrayList<>();
 		XSSFWorkbook wb = null;
@@ -59,8 +59,6 @@ public class ActicalExcelParser {
 		int totalEpochs = 0;
 
 		try {
-			String participant = getParticipantName(excel);
-			System.out.println(participant);
 			FileInputStream fis = new FileInputStream(excel);
 			wb = new XSSFWorkbook(fis);
 			XSSFSheet ws = wb.getSheet(actigraphWorkbook);
@@ -83,7 +81,6 @@ public class ActicalExcelParser {
 								int activityLevel = (int) cell.getNumericCellValue();
 								ActicalEpoch epoch = new ActicalEpoch();
 								epoch.setActivityLevel(activityLevel);
-								epoch.setAssessmentPoint(assessmentPoint);
 								epoch.setDayOfWeek(dataCollectionDay);
 
 								LocalDate ld = header.getDate();
@@ -117,11 +114,6 @@ public class ActicalExcelParser {
 
 		System.out.println("Total epochs in document: " + totalEpochs);
 		return epochs;
-	}
-	
-	private static String getParticipantName(File file){
-		String[] names = file.getName().split("\\.");
-		return names[0];
 	}
 
 	private static LocalDateTime getLocalDateTime(LocalDate ld, String actigraphTime) {

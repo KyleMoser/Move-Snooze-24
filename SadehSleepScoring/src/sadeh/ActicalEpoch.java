@@ -6,6 +6,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 
+import sadeh.SleepAnalysis.ACTIVITY_LEVEL;
+import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
+
 /**
  * An ActigraphyEpoch represents one data point for a participant in the sleep data study. 
  * An Actigraphy is a device that measures activity level of the wearer. An activity level 
@@ -18,17 +21,51 @@ import java.util.Comparator;
  *
  */
 public class ActicalEpoch {
-	//data is collected and analyzed for each patient at the baseline (initial collection), 6 months, and 12 months
-	//and different reports may be produced depending on when the data for this epoch was collected.
-	protected String assessmentPoint; 
+	protected boolean daytime;
+	protected boolean asleep;
 	protected String participant;
 	protected int minuteOfDay; //0 through 59 for first hour; 60 through 119 for second hour, etc
 	protected String dayOfWeek; //Monday, Tuesday, ...
 	protected int activityLevel; //An unbounded, non-negative number representing wearer's activity, 0 means not moving
 	protected LocalDate date; //The date of collection without a time component
 	protected LocalDateTime dateTime;
+	protected ACTIVITY_LEVEL activityThreshold;
+	protected SLEEP_PROBABILITY sleepState;
+	
 	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 	
+	public SLEEP_PROBABILITY getSleepState() {
+		return sleepState;
+	}
+
+	public void setSleepState(SLEEP_PROBABILITY sleepState) {
+		this.sleepState = sleepState;
+	}
+
+	public boolean isDaytime() {
+		return daytime;
+	}
+
+	public void setDaytime(boolean daytime) {
+		this.daytime = daytime;
+	}
+
+	public boolean isAsleep() {
+		return asleep;
+	}
+
+	public void setAsleep(boolean asleep) {
+		this.asleep = asleep;
+	}
+
+	public ACTIVITY_LEVEL getActivityThreshold() {
+		return activityThreshold;
+	}
+
+	public void setActivityThreshold(ACTIVITY_LEVEL activtyThreshold) {
+		this.activityThreshold = activtyThreshold;
+	}
+
 	public String getParticipant() {
 		return participant;
 	}
@@ -54,12 +91,6 @@ public class ActicalEpoch {
 	}
 	public void setDate(LocalDate date) {
 		this.date = date;
-	}
-	public String getAssessmentPoint() {
-		return assessmentPoint;
-	}
-	public void setAssessmentPoint(String assessmentPoint) {
-		this.assessmentPoint = assessmentPoint;
 	}
 	public int getMinuteOfDay() {
 		return minuteOfDay;
