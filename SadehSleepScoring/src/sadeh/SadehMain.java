@@ -8,7 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
+import excel.ActicalDataOutputException;
 import excel.ActicalExcelParser;
+import excel.ActivityThresholdWorkbook;
 import excel.ParticipantDataParseException;
 
 import java.util.Set;
@@ -53,8 +55,13 @@ public class SadehMain {
 				participant.getNapMap().put(entry.getKey(), napData);
 			}
 			
+			String out = "C:\\Users\\kyle_\\Documents\\ActicalData\\Result1.xlsx";
+			ActivityThresholdWorkbook atw = new ActivityThresholdWorkbook(out, "test", epochs);
+			atw.create();
 		} catch (ParticipantDataParseException e) {
 			errorReport.add(e.getMessage());
+			System.out.println(e.getMessage());
+		} catch (ActicalDataOutputException e) {
 			System.out.println(e.getMessage());
 		}
 	}

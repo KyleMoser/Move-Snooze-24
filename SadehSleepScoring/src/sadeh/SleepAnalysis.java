@@ -13,7 +13,7 @@ public class SleepAnalysis {
 	public static final int WINDOW_BEFORE = 5;
 	public static final int WINDOW_AFTER = 5;
 	
-	enum ACTIVITY_LEVEL{
+	public enum ACTIVITY_LEVEL{
 		ASLEEP,
 		NAPPING,
 		SEDENTARY,
@@ -21,7 +21,7 @@ public class SleepAnalysis {
 		MVPA
 	}
 
-	enum SLEEP_PROBABILITY{
+	public enum SLEEP_PROBABILITY{
 		ASLEEP,
 		AWAKE
 	}
