@@ -8,11 +8,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -21,23 +18,19 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.WorkbookUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.jxls.common.CellData.CellType;
 
 import sadeh.ActicalEpoch;
 
 public class ActivityThresholdWorkbook {
 	public static final String worksheetName = "Activity Threshold";
-	public String outputLocation = null;
 	public Workbook workbook = null;
 	public String participant = null;
 	public List<ActicalEpoch> epochs = null;
 	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
 	DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 	
-	public ActivityThresholdWorkbook(String outputFile, String participant, List<ActicalEpoch> epochs){
-		this.outputLocation = outputFile;
+	public ActivityThresholdWorkbook(List<ActicalEpoch> epochs){
 		this.epochs = epochs;
-		this.participant = participant;
 	}
 	
 	public void create() throws ActicalDataOutputException{
@@ -109,15 +102,16 @@ public class ActivityThresholdWorkbook {
 	    	Cell dataCell = row.createCell(cellIdx);
 	    	dataCell.setCellValue(epoch.getActivityThreshold().ordinal());
 	    }
-	    
-
-	    try{
-		    FileOutputStream fileOut = new FileOutputStream(outputLocation);
+	}
+	
+	public void write(String output) throws ActicalDataOutputException{
+		try{
+		    FileOutputStream fileOut = new FileOutputStream(output);
 		    workbook.write(fileOut);
 		    fileOut.close();
 	    } catch(Exception e){
 	    	throw new ActicalDataOutputException("Unable to create activity threshold workbook for participant "
-	    			+ participant + " at path " + outputLocation);
+	    			+ participant + " at path " + output);
 	    }
 	}
 	

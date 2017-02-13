@@ -1,6 +1,11 @@
 package sadeh;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,6 +19,7 @@ import excel.ActivityThresholdWorkbook;
 import excel.ParticipantDataParseException;
 
 import java.util.Set;
+import java.util.stream.Stream;
 
 import sadeh.SleepAnalysis.ACTIVITY_LEVEL;
 import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
@@ -31,37 +37,24 @@ import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
 public class SadehMain {
 	
 	public static void main(String[] args){
-		String path = args[0];
-		List<String> errorReport = new ArrayList<String>();
-		File excel = new File(path);
+		String inputPath = args[0];
+		String outputPath = args[1];
+		String assessmentPoint = args[2];
 		
 		try {
-			ActicalParticipant participant = new ActicalParticipant();
-			participant.setAssessmentPoint("baseline");
-			String name = getParticipantName(excel);
-			participant.setParticipant(name);
-			List<ActicalEpoch> epochs = parseParticipantData(excel);
-			participant.setSleepData(epochs);
+			System.setOut(new PrintStream(new File(outputPath + "\\results.txt")));
 			
-			for (ActicalEpoch epoch : epochs){
-				participant.addEpochToDateBasedMap(epoch);
+			try(Stream<Path> paths = Files.walk(Paths.get(inputPath), 1)) {
+			    paths.forEach(filePath -> {
+			        if (Files.isRegularFile(filePath)) {
+			            System.out.println(filePath);
+			            process(filePath.toFile(), assessmentPoint, outputPath);
+			        }
+			    });
+			} catch (Exception ex){
+				System.out.println(ex.getMessage());
 			}
-			
-			HashMap<String, List<ActicalEpoch>> map = participant.getDateEpochMap();
-			Set<Entry<String, List<ActicalEpoch>>> entries = map.entrySet();
-			for (Entry<String, List<ActicalEpoch>> entry : entries){
-				List<ActicalEpoch> currentEpochs = entry.getValue();
-				NapData napData = calculateNapData(currentEpochs);
-				participant.getNapMap().put(entry.getKey(), napData);
-			}
-			
-			String out = "C:\\Users\\kyle_\\Documents\\ActicalData\\Result1.xlsx";
-			ActivityThresholdWorkbook atw = new ActivityThresholdWorkbook(out, "test", epochs);
-			atw.create();
-		} catch (ParticipantDataParseException e) {
-			errorReport.add(e.getMessage());
-			System.out.println(e.getMessage());
-		} catch (ActicalDataOutputException e) {
+		} catch (Exception e){
 			System.out.println(e.getMessage());
 		}
 	}
@@ -116,6 +109,38 @@ public class SadehMain {
 		napData.setMinNap(minNapDurationMinutes);
 		napData.setNumberNaps(naps.size());
 		return napData;
+	}
+	
+	public static void process(File excel, String assessmentPoint, String outputPath){
+		try {
+			ActicalParticipant participant = new ActicalParticipant();
+			participant.setAssessmentPoint(assessmentPoint);
+			String name = getParticipantName(excel);
+			participant.setParticipant(name);
+			List<ActicalEpoch> epochs = parseParticipantData(excel);
+			participant.setSleepData(epochs);
+			
+			for (ActicalEpoch epoch : epochs){
+				participant.addEpochToDateBasedMap(epoch);
+			}
+			
+			HashMap<String, List<ActicalEpoch>> map = participant.getDateEpochMap();
+			Set<Entry<String, List<ActicalEpoch>>> entries = map.entrySet();
+			for (Entry<String, List<ActicalEpoch>> entry : entries){
+				List<ActicalEpoch> currentEpochs = entry.getValue();
+				NapData napData = calculateNapData(currentEpochs);
+				participant.getNapMap().put(entry.getKey(), napData);
+			}
+			
+			ActivityThresholdWorkbook atw = new ActivityThresholdWorkbook(epochs);
+			atw.create();
+			atw.write(outputPath + "\\" + name + "_" + assessmentPoint + ".xlsx");
+		} catch (ParticipantDataParseException e) {
+			//errorReport.add(e.getMessage());
+			System.out.println(e.getMessage());
+		} catch (ActicalDataOutputException e) {
+			System.out.println(e.getMessage());
+		}
 	}
 	
 	public static List<ActicalEpoch> parseParticipantData(File excel) throws ParticipantDataParseException{
