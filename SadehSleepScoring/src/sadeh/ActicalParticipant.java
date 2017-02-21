@@ -24,7 +24,7 @@ public class ActicalParticipant {
 	//data is collected and analyzed for each patient at the baseline (initial collection), 6 months, and 12 months
 	//and different reports may be produced depending on when the data for this epoch was collected.
 	protected String assessmentPoint; 
-	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
+	public static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 	HashMap<String, List<ActicalEpoch>> dateEpochMap = new HashMap<>();
 	HashMap<String, NapData> napMap = new HashMap<>();
 

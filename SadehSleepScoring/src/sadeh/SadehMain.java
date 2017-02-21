@@ -6,8 +6,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -266,6 +268,14 @@ public class SadehMain {
 				System.out.println("Found sleep period starting at " + ActicalEpoch.asEpochDateTime(sp.getStart())
 					+ " and ending at " + ActicalEpoch.asEpochDateTime(sp.getEnd()));
 			}
+			
+			Set<String> dates = participant.getDateEpochMap().keySet();
+			List<LocalDate> dataCollectionDates = new ArrayList<>();
+			for (String date : dates){
+				LocalDate ld = LocalDate.parse(date, ActicalParticipant.formatter);
+				dataCollectionDates.add(ld);
+			}
+			
 			
 			ActivityThresholdWorkbook atw = new ActivityThresholdWorkbook(epochs);
 			atw.create();

@@ -32,7 +32,7 @@ public class ActicalEpoch {
 	protected ACTIVITY_LEVEL activityThreshold;
 	protected SLEEP_PROBABILITY sleepState;
 	DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH:mm");
-	DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
+	public DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 	static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 	
 	public String asEpochTime(){
