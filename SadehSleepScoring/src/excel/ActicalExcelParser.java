@@ -13,6 +13,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -50,18 +55,18 @@ public class ActicalExcelParser {
 	public static List<ActicalEpoch> parseSadehExcelDocument(File excel)
 			throws ParticipantDataParseException {
 		List<ActicalEpoch> epochs = new ArrayList<>();
-		XSSFWorkbook wb = null;
+		HSSFWorkbook wb = null;
 		
 		// Parse the sleep data from the body rows of the excel document
-		XSSFRow row = null;
+		HSSFRow row = null;
 		String time = null; // the time an epoch of activity data was collected
 		int rowIdx = BEGIN_DATA_ROW_INDEX;
 		int totalEpochs = 0;
 
 		try {
 			FileInputStream fis = new FileInputStream(excel);
-			wb = new XSSFWorkbook(fis);
-			XSSFSheet ws = wb.getSheet(actigraphWorkbook);
+			wb = new HSSFWorkbook(fis);
+			HSSFSheet ws = wb.getSheet(actigraphWorkbook);
 			
 			// The epoch data is in non-contiguous columns with known names, this finds the columns indices.
 			List<ActigraphDataHeader> headers = parseHeader(ws);
@@ -75,7 +80,7 @@ public class ActicalExcelParser {
 					if (time != null) {
 
 						for (ActigraphDataHeader header : headers) {
-							XSSFCell cell = row.getCell(header.getColumnIndex());
+							HSSFCell cell = row.getCell(header.getColumnIndex());
 							if (!isCellEmpty(cell)) {
 								String dataCollectionDay = header.getDayOfWeek();
 								int activityLevel = (int) cell.getNumericCellValue();
@@ -130,7 +135,7 @@ public class ActicalExcelParser {
 	}
 
 	@SuppressWarnings("deprecation")
-	public static boolean isCellEmpty(final XSSFCell cell) {
+	public static boolean isCellEmpty(final HSSFCell cell) {
 		if (cell == null || cell.getCellType() == Cell.CELL_TYPE_BLANK) {
 			return true;
 		}
@@ -150,8 +155,8 @@ public class ActicalExcelParser {
 	 * @param row
 	 * @return
 	 */
-	private static String parseTimeActivityRecorded(XSSFRow row) {
-		XSSFCell cell = row.getCell(EPOCH_TIME_INDEX);
+	private static String parseTimeActivityRecorded(HSSFRow row) {
+		HSSFCell cell = row.getCell(EPOCH_TIME_INDEX);
 		Date date = parseDate(cell);
 
 		if (date != null) {
@@ -161,7 +166,7 @@ public class ActicalExcelParser {
 		}
 	}
 
-	private static Date parseDate(XSSFCell cell) {
+	private static Date parseDate(HSSFCell cell) {
 		if (!isCellEmpty(cell)) {
 			return cell.getDateCellValue();
 		} else {
@@ -169,18 +174,18 @@ public class ActicalExcelParser {
 		}
 	}
 
-	private static List<ActigraphDataHeader> parseHeader(XSSFSheet ws) {
+	private static List<ActigraphDataHeader> parseHeader(HSSFSheet ws) {
 		List<ActigraphDataHeader> headers = new ArrayList<>(8); // There should
 																// be no more
 																// than 8
 																// columns
-		XSSFRow row = ws.getRow(HEADER_ROW_INDEX);
-		XSSFRow dateRow = ws.getRow(BEGIN_DATA_ROW_INDEX);
+		HSSFRow row = ws.getRow(HEADER_ROW_INDEX);
+		HSSFRow dateRow = ws.getRow(BEGIN_DATA_ROW_INDEX);
 
 		int maxColIdx = 26; // There cannot be headers past this column
 
 		for (int i = 0; i < maxColIdx; i++) {
-			XSSFCell cell = row.getCell(i);
+			HSSFCell cell = row.getCell(i);
 			if (cell != null) {
 				try {
 					String value = cell.getStringCellValue();

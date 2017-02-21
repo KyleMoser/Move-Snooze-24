@@ -31,8 +31,26 @@ public class ActicalEpoch {
 	protected LocalDateTime dateTime;
 	protected ACTIVITY_LEVEL activityThreshold;
 	protected SLEEP_PROBABILITY sleepState;
+	DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("HH:mm");
+	DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
+	static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 	
-	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+	public String asEpochTime(){
+		LocalDateTime ldt = getDateTime();
+    	String hourMinute = ldt.format(hourFormatter);
+    	return hourMinute;
+	}
+	
+	public String asEpochDateTime(){
+		LocalDateTime ldt = getDateTime();
+    	String fdt = ldt.format(formatter);
+    	return fdt;
+	}
+	
+	public static String asEpochDateTime(LocalDateTime ldt){
+    	String fdt = ldt.format(formatter);
+    	return fdt;
+	}
 	
 	public SLEEP_PROBABILITY getSleepState() {
 		return sleepState;
@@ -50,6 +68,11 @@ public class ActicalEpoch {
 		this.daytime = daytime;
 	}
 
+	/**
+	 * Indicates whether the individual is asleep (or napping) according to their sadeh score.
+	 * 
+	 * @return true if the individual is asleep or napping
+	 */
 	public boolean isAsleep() {
 		return asleep;
 	}

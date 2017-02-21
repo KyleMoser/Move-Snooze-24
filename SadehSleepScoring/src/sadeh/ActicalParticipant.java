@@ -50,6 +50,10 @@ public class ActicalParticipant {
 		}
 	}
  	
+	/**
+	 * HashMap where the key is the date (day month year) and the value is a list of epochs collected that day
+	 * @return
+	 */
 	public HashMap<String, List<ActicalEpoch>> getDateEpochMap() {
 		return dateEpochMap;
 	}

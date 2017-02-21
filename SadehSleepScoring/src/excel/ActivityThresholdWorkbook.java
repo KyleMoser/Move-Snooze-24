@@ -41,10 +41,9 @@ public class ActivityThresholdWorkbook {
 	    SortedSet <LocalDate> epochDates = new TreeSet<>();
 	    //HashMap<String, Integer> dateToCellIndex = new HashMap<>();
 	    Row dateRow = worksheet.createRow(0);
-	    Cell emptyDateCell = dateRow.createCell(0);
-	    emptyDateCell.setCellValue("");
+	    Cell epochDateCell = dateRow.createCell(0);
+	    epochDateCell.setCellValue("Time");
 
-	    
 	    HashMap<LocalDate, Integer> dateToCellIdx = new HashMap<>();
 	   
 	    HashMap<String, Row> hourMinuteRow = new HashMap<>(); 

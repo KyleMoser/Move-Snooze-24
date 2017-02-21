@@ -1,7 +1,6 @@
 package sadeh;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,17 +9,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
-
 import excel.ActicalDataOutputException;
 import excel.ActicalExcelParser;
 import excel.ActivityThresholdWorkbook;
 import excel.ParticipantDataParseException;
-
 import java.util.Set;
 import java.util.stream.Stream;
-
+import analysis.SleepPeriod;
 import sadeh.SleepAnalysis.ACTIVITY_LEVEL;
 import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
 
@@ -64,6 +62,136 @@ public class SadehMain {
 		return names[0];
 	}
 	
+	/**
+	 * A sleep period uses the data from the sadeh algorithm to find time periods where an 
+	 * individual is sleeping. 15 or more epochs of asleep (or napping) preceded and followed by 5 minutes of 
+	 * awake (e.g. light, sedentary, or mvpa activity level) counts as a sleep period. Once 15 consecutive epochs
+	 * of sleep are reached, all other epochs still count as part of the sleep period up until there are 5 consecutive 
+	 * awake epochs. For example, if the 16th epoch is awake but the 17th is asleep, then 18-22 are all awake, the sleep
+	 * period would contain epochs 1-17, even though epoch 16 was awake.
+	 * 
+	 * @return
+	 * @throws ParticipantDataParseException 
+	 */
+	public static List<SleepPeriod> getSleepPeriods(List<ActicalEpoch> epochs) throws ParticipantDataParseException{
+		List<SleepPeriod> sleepPeriods = new ArrayList<>();
+		List<ActicalEpoch> possibleSleepPeriod = new ArrayList<>();
+		List<PossibleSleepPeriod> psps = new ArrayList<>();
+		int sleepStartingIndex = -1;
+		
+		/*
+		 * Find any groups of 15 consecutive epochs that are coded as "asleep" or "napping". 
+		 * This is a possible sleep period. To determine if it is actually a sleep period,
+		 * we will later calculate whether the group is preceded (and followed) by 5 or more
+		 * consecutive "awake" epochs.
+		 */
+		for (int i = 0; i < epochs.size(); i++){
+			ActicalEpoch current = epochs.get(i);
+			if (current.isAsleep()){
+				if (possibleSleepPeriod.isEmpty()){
+					sleepStartingIndex = i;
+				}
+				
+				possibleSleepPeriod.add(current);
+			} 
+			
+			if (!current.isAsleep() || i == epochs.size()-1){
+				if (possibleSleepPeriod.size() >= 15){
+					PossibleSleepPeriod psp = new PossibleSleepPeriod();
+					psp.epochListStartingIndex = sleepStartingIndex;
+					psp.epochs = possibleSleepPeriod;
+					psps.add(psp);
+				}
+				
+				possibleSleepPeriod = new ArrayList<>();
+				sleepStartingIndex = -1;
+			}
+		}
+		
+		/*
+		 * For each possible sleep period, find the end of the sleep period by finding the point where
+		 * there are 5 consecutive "awake" epochs. If there is no such point (which might happen at the end
+		 * of the data set) the possible sleep period will be discarded, since it isn't really a sleep period.
+		 */
+		Iterator<PossibleSleepPeriod> pspIt = psps.iterator();
+		while (pspIt.hasNext()){
+			PossibleSleepPeriod psp = pspIt.next();
+			List<ActicalEpoch> eps = psp.epochs;
+			int possibleSleepEpochDsIdx = epochs.indexOf(eps.get(eps.size()-1));
+			//Verify that the possible sleep period's starting index is the same as the index of the epoch in the data set 
+			if (possibleSleepEpochDsIdx != psp.epochListStartingIndex+eps.size()-1)
+				throw new ParticipantDataParseException("Possible sleep period starting at " + eps.get(0).asEpochDateTime() 
+						+ " starting index of " + (psp.epochListStartingIndex+eps.size()) + " does not match expected index of " + possibleSleepEpochDsIdx);
+			
+			int consecutiveAwake = 0;
+			ArrayList<ActicalEpoch> additionalSleepochs = new ArrayList<>();
+			ArrayList<ActicalEpoch> tempSleepochs = new ArrayList<>();
+			boolean hasWakePeriod = false; //is there data indicating person woke up; if not it's probably the end of the data collected
+			
+			//work forwards to see if there are 5 consecutive awake epochs after this sleep period.
+			//also, the possible sleep period only contains 15 epochs (the minimum) but might actually
+			//have more; this loop will add any additional epochs to the sleep period as necessary.
+			//(See the definition of 'sleep period' in the method Javadoc for more information)
+			for (int i = possibleSleepEpochDsIdx+1; i < epochs.size(); i++){
+				ActicalEpoch epoch = epochs.get(i);
+				if (!epoch.isAsleep()){
+					consecutiveAwake++;
+					//The current epoch might be part of the sleep period or might indicate the end of the sleep period.
+					//That determination depends on whether it is part of 5 consecutive 'awake' epochs or not.
+					tempSleepochs.add(epoch);
+				} else{
+					consecutiveAwake = 0;
+					additionalSleepochs.addAll(tempSleepochs);
+					additionalSleepochs.add(epoch);
+					tempSleepochs = new ArrayList<>();
+				}
+				
+				if (consecutiveAwake >= 5){
+					psp.epochs.addAll(additionalSleepochs);
+					hasWakePeriod = true;
+					break;
+				}
+			}
+			
+			if (!hasWakePeriod){
+				System.out.println("Possible sleep period of 15+ sleep epochs starting at " + eps.get(0).asEpochDateTime()
+						+ " is determined not to be a sleep period because it does not end with 5 awake epochs.");
+				pspIt.remove();
+			}
+		}
+		
+		for (PossibleSleepPeriod psp : psps){
+			List<ActicalEpoch> eps = psp.epochs;
+			System.out.println("Possible sleep period: individual has 15+ sleep epochs starting at " + eps.get(0).asEpochDateTime());
+
+			//for the first epoch in the sleep period, find its place within the data set
+			int possibleSleepEpochDsIdx = epochs.indexOf(eps.get(0));
+			//Verify that the possible sleep period's starting index is the same as the index of the first epoch in the data set (it should be)
+			if (possibleSleepEpochDsIdx != psp.epochListStartingIndex)
+				throw new ParticipantDataParseException("Possible sleep period starting at " + eps.get(0).asEpochDateTime() 
+						+ " starting index of " + psp.epochListStartingIndex + " does not match expected index of " + possibleSleepEpochDsIdx);
+			
+			int consecutiveAwake = 0;
+			//work backwards to see if there are 5 consecutive awake epochs before this sleep period
+			for (int i = psp.epochListStartingIndex-1; i >= 0; i--){
+				ActicalEpoch epoch = epochs.get(i);
+				if (!epoch.isAsleep()){
+					consecutiveAwake++;
+				} else{
+					break;
+				}
+				
+				if (consecutiveAwake >= 5){
+					SleepPeriod sp = new SleepPeriod(psp.epochs);
+					sleepPeriods.add(sp);
+					break;
+				}
+			}
+		}
+		
+		return sleepPeriods;
+	}
+	
 	public static NapData calculateNapData(List<ActicalEpoch> epochs){
 		int consecutiveNappingEpochs = 0;
 		List<Integer> naps = new ArrayList<>();
@@ -79,7 +207,8 @@ public class SadehMain {
 				consecutiveNappingEpochs++;
 			} 
 			
-			if ((!napping && consecutiveNappingEpochs >= 30) || i == epochs.size()-1){
+			if ((!napping && consecutiveNappingEpochs >= 30) ||
+					(i == epochs.size()-1 && consecutiveNappingEpochs >= 30)){
 				naps.add(consecutiveNappingEpochs);
 			}
 			
@@ -132,11 +261,16 @@ public class SadehMain {
 				participant.getNapMap().put(entry.getKey(), napData);
 			}
 			
+			List<SleepPeriod> sleepPeriods = getSleepPeriods(epochs);
+			for (SleepPeriod sp : sleepPeriods){
+				System.out.println("Found sleep period starting at " + ActicalEpoch.asEpochDateTime(sp.getStart())
+					+ " and ending at " + ActicalEpoch.asEpochDateTime(sp.getEnd()));
+			}
+			
 			ActivityThresholdWorkbook atw = new ActivityThresholdWorkbook(epochs);
 			atw.create();
 			atw.write(outputPath + "\\" + name + "_" + assessmentPoint + ".xlsx");
 		} catch (ParticipantDataParseException e) {
-			//errorReport.add(e.getMessage());
 			System.out.println(e.getMessage());
 		} catch (ActicalDataOutputException e) {
 			System.out.println(e.getMessage());
@@ -193,5 +327,10 @@ public class SadehMain {
 						previousEpoch.getDateTime()).toMinutes());
 
 		return minutes == 1;
+	}
+	
+	public static class PossibleSleepPeriod{
+		List<ActicalEpoch> epochs = new ArrayList<>();
+		int epochListStartingIndex = -1;
 	}
 }
