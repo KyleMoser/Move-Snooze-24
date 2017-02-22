@@ -18,6 +18,16 @@ public class SleepStats {
 	LocalDate localDate;
 	LocalDateTime sleepOnset;
 	LocalDateTime sleepOffset;
+	long nightSleepPeriod = -1;
+	long totalSleepTime = -1;
+	long totalWakeTime = -1;
+	double sleepEfficiency = -1;
+	double percentDailySleep = -1;
+	long eightToEight = -1;
+	int sedentary = -1;
+	int light = -1;
+	int mvpa = -1;
+	
 	
 	public SleepStats(LocalDate localDate, SleepPeriod onset, SleepPeriod offset){
 		this.localDate = localDate;
@@ -29,21 +39,93 @@ public class SleepStats {
 			sleepOffset = offset.getEnd();
 	}
 	
-	public long getNightSleepPeriod(){
+	public long getNightSleepPeriod() {
+		return nightSleepPeriod;
+	}
+
+	public void setNightSleepPeriod(long nightSleepPeriod) {
+		this.nightSleepPeriod = nightSleepPeriod;
+	}
+
+	public long getTotalSleepTime() {
+		return totalSleepTime;
+	}
+
+	public void setTotalSleepTime(long totalSleepTime) {
+		this.totalSleepTime = totalSleepTime;
+	}
+
+	public long getTotalWakeTime() {
+		return totalWakeTime;
+	}
+
+	public void setTotalWakeTime(long totalWakeTime) {
+		this.totalWakeTime = totalWakeTime;
+	}
+	
+	public double getSleepEfficiency() {
+		return sleepEfficiency;
+	}
+
+	public void setSleepEfficiency(double sleepEfficiency) {
+		this.sleepEfficiency = sleepEfficiency;
+	}
+
+	public double getPercentDailySleep() {
+		return percentDailySleep;
+	}
+
+	public void setPercentDailySleep(double percentDailySleep) {
+		this.percentDailySleep = percentDailySleep;
+	}
+
+	public long getEightToEight() {
+		return eightToEight;
+	}
+
+	public void setEightToEight(long eightToEight) {
+		this.eightToEight = eightToEight;
+	}
+
+	public int getSedentary() {
+		return sedentary;
+	}
+
+	public void setSedentary(int sedentary) {
+		this.sedentary = sedentary;
+	}
+
+	public int getLight() {
+		return light;
+	}
+
+	public void setLight(int light) {
+		this.light = light;
+	}
+
+	public int getMvpa() {
+		return mvpa;
+	}
+
+	public void setMvpa(int mvpa) {
+		this.mvpa = mvpa;
+	}
+
+	public long calculateNightSleepPeriod(){
 		if (sleepOnset == null || sleepOffset == null)
 			return -1;
 		
 		return Math.abs(ChronoUnit.MINUTES.between(sleepOnset, sleepOffset));
 	}
 	
-	public long getTotalSleepTime(List<ActicalEpoch> epochs){
+	public long calculateTotalSleepTime(List<ActicalEpoch> epochs){
 		Stream<ActicalEpoch> eStream = 
 				epochs.stream().filter(epoch -> epoch.isAsleep() && between(sleepOnset, sleepOffset, epoch.getDateTime()));
 		List<ActicalEpoch> results = eStream.collect(Collectors.toList());
 		return results.size();
 	}
 	
-	public long getTotalTimeBasedNightSleep(List<ActicalEpoch> epochs){
+	public long calculateTotalTimeBasedNightSleep(List<ActicalEpoch> epochs){
 		LocalDateTime ldtStartInterval = localDate.atTime(20, 0, 0);
 		LocalDateTime ldtEndInterval = localDate.plusDays(1).atTime(8,0,0);
 		
@@ -53,7 +135,7 @@ public class SleepStats {
 		return results.size();
 	}
 	
-	public int getByActivityLevel(List<ActicalEpoch> epochs, ACTIVITY_LEVEL lvl){
+	public int calculateByActivityLevel(List<ActicalEpoch> epochs, ACTIVITY_LEVEL lvl){
 		Stream<ActicalEpoch> eStream = 
 				epochs.stream().filter(epoch -> epoch.getDate().isEqual(localDate) 
 						&& epoch.getActivityThreshold() == lvl);
@@ -61,7 +143,7 @@ public class SleepStats {
 		return results.size();
 	}
 	
-	public double getPercentDailySleep(List<ActicalEpoch> epochs){
+	public double calculatePercentDailySleep(List<ActicalEpoch> epochs){
 		Stream<ActicalEpoch> eStream = 
 				epochs.stream().filter(epoch -> epoch.getDate().isEqual(localDate) && epoch.isAsleep());
 		List<ActicalEpoch> results = eStream.collect(Collectors.toList());
@@ -74,11 +156,11 @@ public class SleepStats {
 		return ((double)results.size()/(double)allEpsForDate.size());
 	}
 	
-	public long getTotalWakeTime(long totalSleepTime){
-		return Math.abs(getNightSleepPeriod() - totalSleepTime);
+	public long calculateTotalWakeTime(long totalSleepTime){
+		return Math.abs(calculateNightSleepPeriod() - totalSleepTime);
 	}
 	
-	public double getSleepEfficiency(long totalSleepTime, long nightSleepPeriod){
+	public double calculateSleepEfficiency(long totalSleepTime, long nightSleepPeriod){
 		return ((double) totalSleepTime/(double)nightSleepPeriod);
 	}
 	

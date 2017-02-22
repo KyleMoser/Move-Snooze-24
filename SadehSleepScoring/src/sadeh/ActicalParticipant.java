@@ -1,10 +1,13 @@
 package sadeh;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import analysis.SleepStats;
 
 /**
  * A participant in the sleep data study. For a period of one week, this person's sleep data is collected
@@ -27,6 +30,7 @@ public class ActicalParticipant {
 	public static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 	HashMap<String, List<ActicalEpoch>> dateEpochMap = new HashMap<>();
 	HashMap<String, NapData> napMap = new HashMap<>();
+	HashMap<String, SleepStats> sleepStats = new HashMap<>();
 
 	
 	public HashMap<String, NapData> getNapMap() {
@@ -35,6 +39,14 @@ public class ActicalParticipant {
 
 	public void setNapMap(HashMap<String, NapData> napMap) {
 		this.napMap = napMap;
+	}
+
+	public HashMap<String, SleepStats> getSleepStats() {
+		return sleepStats;
+	}
+
+	public void setSleepStats(HashMap<String, SleepStats> sleepStats) {
+		this.sleepStats = sleepStats;
 	}
 
 	public void addEpochToDateBasedMap(ActicalEpoch epoch){
@@ -50,6 +62,12 @@ public class ActicalParticipant {
 		}
 	}
  	
+	public void addSleepStatsToDateBasedMap(SleepStats stats){
+		LocalDate ldt = stats.getLocalDate();
+		String date = ldt.format(formatter);
+		sleepStats.put(date, stats);
+	}
+	
 	/**
 	 * HashMap where the key is the date (day month year) and the value is a list of epochs collected that day
 	 * @return

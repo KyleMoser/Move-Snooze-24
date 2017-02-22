@@ -18,6 +18,8 @@ import excel.ActicalDataOutputException;
 import excel.ActicalExcelParser;
 import excel.ActivityThresholdWorkbook;
 import excel.ParticipantDataParseException;
+import excel.ParticipantWorkbook;
+
 import java.util.Set;
 import java.util.stream.Stream;
 import analysis.SleepPeriod;
@@ -45,18 +47,26 @@ public class SadehMain {
 		
 		try {
 			System.setOut(new PrintStream(new File(outputPath + "\\results.txt")));
+			List<ActicalParticipant> participants = new ArrayList<>();
 			
 			try(Stream<Path> paths = Files.walk(Paths.get(inputPath), 1)) {
 			    paths.forEach(filePath -> {
 			        if (Files.isRegularFile(filePath)) {
 			            System.out.println(filePath);
-			            process(filePath.toFile(), assessmentPoint, outputPath);
+			            ActicalParticipant p = process(filePath.toFile(), assessmentPoint, outputPath);
+			            participants.add(p);
 			        }
 			    });
 			} catch (Exception ex){
+				ex.printStackTrace();
 				System.out.println(ex.getMessage());
 			}
+			
+			ParticipantWorkbook pwb = new ParticipantWorkbook(participants);
+			pwb.create();
+			pwb.write(outputPath + "\\participantData.xlsx");
 		} catch (Exception e){
+			e.printStackTrace();
 			System.out.println(e.getMessage());
 		}
 	}
@@ -214,6 +224,7 @@ public class SadehMain {
 			if ((!napping && consecutiveNappingEpochs >= 30) ||
 					(i == epochs.size()-1 && consecutiveNappingEpochs >= 30)){
 				naps.add(consecutiveNappingEpochs);
+				consecutiveNappingEpochs = 0;
 			}
 			
 		}
@@ -244,7 +255,7 @@ public class SadehMain {
 		return napData;
 	}
 	
-	public static void process(File excel, String assessmentPoint, String outputPath){
+	public static ActicalParticipant process(File excel, String assessmentPoint, String outputPath){
 		try {
 			ActicalParticipant participant = new ActicalParticipant();
 			participant.setAssessmentPoint(assessmentPoint);
@@ -299,11 +310,14 @@ public class SadehMain {
 				
 				SleepStats sleep = new SleepStats(date, sleepOnset, sleepOffset);
 				if (sleepOnset != null && sleepOffset != null){
-					long nightSleepPeriod = sleep.getNightSleepPeriod();
-					long totalSleepTime = sleep.getTotalSleepTime(epochs);
-					long totalWakeTime = sleep.getTotalWakeTime(totalSleepTime);
-					double sleepEfficiency = sleep.getSleepEfficiency(totalSleepTime, nightSleepPeriod);
-					
+					long nightSleepPeriod = sleep.calculateNightSleepPeriod();
+					sleep.setNightSleepPeriod(nightSleepPeriod);
+					long totalSleepTime = sleep.calculateTotalSleepTime(epochs);
+					sleep.setTotalSleepTime(totalSleepTime);
+					long totalWakeTime = sleep.calculateTotalWakeTime(totalSleepTime);
+					sleep.setTotalWakeTime(totalWakeTime);
+					double sleepEfficiency = sleep.calculateSleepEfficiency(totalSleepTime, nightSleepPeriod);
+					sleep.setSleepEfficiency(sleepEfficiency);
 					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
 					+ ", night sleep period: " + nightSleepPeriod);
 					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
@@ -315,11 +329,16 @@ public class SadehMain {
 				}
 				
 				//you can do these with or without sleep onset/offset
-				double percentDailySleep = sleep.getPercentDailySleep(epochs);
-				long eightToEight = sleep.getTotalTimeBasedNightSleep(epochs);
-				int sedentary = sleep.getByActivityLevel(epochs, ACTIVITY_LEVEL.SEDENTARY);
-				int light = sleep.getByActivityLevel(epochs, ACTIVITY_LEVEL.LIGHT);
-				int mvpa = sleep.getByActivityLevel(epochs, ACTIVITY_LEVEL.MVPA);
+				double percentDailySleep = sleep.calculatePercentDailySleep(epochs);
+				sleep.setPercentDailySleep(percentDailySleep);
+				long eightToEight = sleep.calculateTotalTimeBasedNightSleep(epochs);
+				sleep.setEightToEight(eightToEight);
+				int sedentary = sleep.calculateByActivityLevel(epochs, ACTIVITY_LEVEL.SEDENTARY);
+				sleep.setSedentary(sedentary);
+				int light = sleep.calculateByActivityLevel(epochs, ACTIVITY_LEVEL.LIGHT);
+				sleep.setLight(light);
+				int mvpa = sleep.calculateByActivityLevel(epochs, ACTIVITY_LEVEL.MVPA);
+				sleep.setMvpa(mvpa);
 				
 				
 				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
@@ -332,17 +351,23 @@ public class SadehMain {
 				+ ", light: " + light);
 				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
 				+ ", mvpa: " + mvpa);
+				
+				participant.addSleepStatsToDateBasedMap(sleep);
 			}
 			
 			
 			ActivityThresholdWorkbook atw = new ActivityThresholdWorkbook(epochs);
 			atw.create();
 			atw.write(outputPath + "\\" + name + "_" + assessmentPoint + ".xlsx");
+			
+			return participant;
 		} catch (ParticipantDataParseException e) {
 			System.out.println(e.getMessage());
 		} catch (ActicalDataOutputException e) {
 			System.out.println(e.getMessage());
 		}
+		
+		return null;
 	}
 	
 	public static List<ActicalEpoch> parseParticipantData(File excel) throws ParticipantDataParseException{
