@@ -21,6 +21,8 @@ import excel.ParticipantDataParseException;
 import java.util.Set;
 import java.util.stream.Stream;
 import analysis.SleepPeriod;
+import analysis.SleepStats;
+import analysis.Utils;
 import sadeh.SleepAnalysis.ACTIVITY_LEVEL;
 import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
 
@@ -274,6 +276,62 @@ public class SadehMain {
 			for (String date : dates){
 				LocalDate ld = LocalDate.parse(date, ActicalParticipant.formatter);
 				dataCollectionDates.add(ld);
+			}
+			
+			Collections.sort(dataCollectionDates);
+			System.out.println(System.lineSeparator());
+			
+			for (LocalDate date : dataCollectionDates){
+				SleepPeriod sleepOnset = SleepStats.findSleepOnset(date, sleepPeriods);
+				SleepPeriod sleepOffset = SleepStats.findSleepOffset(date, sleepPeriods, sleepOnset);
+				
+				if (sleepOnset != null && sleepOffset != null){
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+						+ ", sleep onset: " + Utils.asDateTime(sleepOnset.getStart())
+						+ ", sleep offset: " + Utils.asDateTime(sleepOffset.getEnd()));
+				} else if (sleepOnset == null){
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+					+ ", sleep onset was not found.");
+				} else if (sleepOffset == null){
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+					+ ", sleep offset was not found.");
+				}
+				
+				SleepStats sleep = new SleepStats(date, sleepOnset, sleepOffset);
+				if (sleepOnset != null && sleepOffset != null){
+					long nightSleepPeriod = sleep.getNightSleepPeriod();
+					long totalSleepTime = sleep.getTotalSleepTime(epochs);
+					long totalWakeTime = sleep.getTotalWakeTime(totalSleepTime);
+					double sleepEfficiency = sleep.getSleepEfficiency(totalSleepTime, nightSleepPeriod);
+					
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+					+ ", night sleep period: " + nightSleepPeriod);
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+					+ ", total sleep time: " + totalSleepTime);
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+					+ ", total wake time: " + totalWakeTime);
+					System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+					+ ", sleep efficiency: " + sleepEfficiency);
+				}
+				
+				//you can do these with or without sleep onset/offset
+				double percentDailySleep = sleep.getPercentDailySleep(epochs);
+				long eightToEight = sleep.getTotalTimeBasedNightSleep(epochs);
+				int sedentary = sleep.getByActivityLevel(epochs, ACTIVITY_LEVEL.SEDENTARY);
+				int light = sleep.getByActivityLevel(epochs, ACTIVITY_LEVEL.LIGHT);
+				int mvpa = sleep.getByActivityLevel(epochs, ACTIVITY_LEVEL.MVPA);
+				
+				
+				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+				+ ", percent daily sleep: " + percentDailySleep);
+				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+				+ ", total time based night sleep: " + eightToEight);
+				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+				+ ", sedentary: " + sedentary);
+				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+				+ ", light: " + light);
+				System.out.println("Participant: " + participant.getParticipant() + ", date: " + Utils.asDate(date)
+				+ ", mvpa: " + mvpa);
 			}
 			
 			

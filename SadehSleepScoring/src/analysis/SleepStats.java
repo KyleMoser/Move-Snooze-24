@@ -2,21 +2,91 @@ package analysis;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import sadeh.ActicalEpoch;
+import sadeh.SleepAnalysis.ACTIVITY_LEVEL;
 
 public class SleepStats {
 	LocalDate localDate;
 	LocalDateTime sleepOnset;
 	LocalDateTime sleepOffset;
 	
+	public SleepStats(LocalDate localDate, SleepPeriod onset, SleepPeriod offset){
+		this.localDate = localDate;
+		
+		if (onset != null)
+			sleepOnset = onset.getStart();
+		
+		if (offset != null)
+			sleepOffset = offset.getEnd();
+	}
+	
+	public long getNightSleepPeriod(){
+		if (sleepOnset == null || sleepOffset == null)
+			return -1;
+		
+		return Math.abs(ChronoUnit.MINUTES.between(sleepOnset, sleepOffset));
+	}
+	
+	public long getTotalSleepTime(List<ActicalEpoch> epochs){
+		Stream<ActicalEpoch> eStream = 
+				epochs.stream().filter(epoch -> epoch.isAsleep() && between(sleepOnset, sleepOffset, epoch.getDateTime()));
+		List<ActicalEpoch> results = eStream.collect(Collectors.toList());
+		return results.size();
+	}
+	
+	public long getTotalTimeBasedNightSleep(List<ActicalEpoch> epochs){
+		LocalDateTime ldtStartInterval = localDate.atTime(20, 0, 0);
+		LocalDateTime ldtEndInterval = localDate.plusDays(1).atTime(8,0,0);
+		
+		Stream<ActicalEpoch> eStream = 
+				epochs.stream().filter(epoch -> epoch.isAsleep() && between(ldtStartInterval, ldtEndInterval, epoch.getDateTime()));
+		List<ActicalEpoch> results = eStream.collect(Collectors.toList());
+		return results.size();
+	}
+	
+	public int getByActivityLevel(List<ActicalEpoch> epochs, ACTIVITY_LEVEL lvl){
+		Stream<ActicalEpoch> eStream = 
+				epochs.stream().filter(epoch -> epoch.getDate().isEqual(localDate) 
+						&& epoch.getActivityThreshold() == lvl);
+		List<ActicalEpoch> results = eStream.collect(Collectors.toList());
+		return results.size();
+	}
+	
+	public double getPercentDailySleep(List<ActicalEpoch> epochs){
+		Stream<ActicalEpoch> eStream = 
+				epochs.stream().filter(epoch -> epoch.getDate().isEqual(localDate) && epoch.isAsleep());
+		List<ActicalEpoch> results = eStream.collect(Collectors.toList());
+		
+		
+		Stream<ActicalEpoch> allEpochsForDate = 
+				epochs.stream().filter(epoch -> epoch.getDate().isEqual(localDate));
+		List<ActicalEpoch> allEpsForDate = allEpochsForDate.collect(Collectors.toList());
+		
+		return ((double)results.size()/(double)allEpsForDate.size());
+	}
+	
+	public long getTotalWakeTime(long totalSleepTime){
+		return Math.abs(getNightSleepPeriod() - totalSleepTime);
+	}
+	
+	public double getSleepEfficiency(long totalSleepTime, long nightSleepPeriod){
+		return ((double) totalSleepTime/(double)nightSleepPeriod);
+	}
+	
 	/**
 	 * Colloquially, the sleep onset is the time a person initially fell asleep on a particular date.
-	 * This method finds the sleep onset as follows. Find an epoch coded as asleep between 8PM and 12:00AM.
-	 * If none is found, find one between 6PM and 12:00AM. If still none is found, between 6PM and 8:00AM.
+	 * This method finds the sleep onset as follows. Find an epoch coded as asleep between 7:30PM and 11:30PM.
+	 * This epoch must be the first epoch of a sleep period; otherwise, it is ineligible to be selected.
+	 * If none is found, find one between 5:30PM and 11:30PM. If still none is found, between 5:30PM and 8:00AM.
 	 * (AM times are obviously the following day; PM times are the same day. First the algorithm works backwards,
 	 * assuming that the person may have fallen asleep early in the evening; then, the algorithm expands the 
 	 * search to include a larger portion of the following day).
@@ -26,21 +96,21 @@ public class SleepStats {
 	 * @return
 	 */
 	public static SleepPeriod findSleepOnset(LocalDate forDate, List<SleepPeriod> sleepPeriods){
-		LocalDateTime ldtStartInterval = forDate.atTime(19, 59, 59);
-		LocalDateTime ldtEndInterval = forDate.plusDays(1).atTime(0,0,1);
+		LocalDateTime ldtStartInterval = forDate.atTime(19, 29, 0);
+		LocalDateTime ldtEndInterval = forDate.atTime(23,30,1);
 		SortedSet<SleepPeriod> spSet = new TreeSet<>(new SleepPeriodSorter());
 		spSet.addAll(sleepPeriods);
 		
-		//Check to find the first sleep period that started between the date at 8PM and the next morning at 12:00AM
+		//Check to find the first sleep period that started between the date at 7:30PM-11:30PM
 		for (SleepPeriod sp : spSet){
 			if (between(ldtStartInterval, ldtEndInterval, sp.getStart())){
 				return sp;
 			}
 		}
 		
-		ldtStartInterval = forDate.atTime(17, 59, 59);
+		ldtStartInterval = forDate.atTime(17, 29, 0);
 		
-		//Check to find the first sleep period that started between the date at 6PM and the next morning at 12:00AM
+		//Check to find the first sleep period that started between the date at 5:30PM-11:30PM
 		for (SleepPeriod sp : spSet){
 			if (between(ldtStartInterval, ldtEndInterval, sp.getStart())){
 				return sp;
@@ -49,7 +119,7 @@ public class SleepStats {
 		
 		ldtEndInterval = forDate.plusDays(1).atTime(8,0,1);
 		
-		//Check to find the first sleep period that started between the date at 6PM and the next morning at 8AM
+		//Check to find the first sleep period that started between the date at 5:30PM and the next morning at 8AM
 		for (SleepPeriod sp : spSet){
 			if (between(ldtStartInterval, ldtEndInterval, sp.getStart())){
 				return sp;
@@ -60,6 +130,9 @@ public class SleepStats {
 	}
 	
 	public static SleepPeriod findSleepOffset(LocalDate forDate, List<SleepPeriod> sleepPeriods, SleepPeriod onset){
+		if (onset == null)
+			return null;
+		
 		LocalDateTime ldtStartInterval = forDate.plusDays(1).atTime(5, 59, 59);
 		LocalDateTime ldtEndInterval = forDate.plusDays(1).atTime(9,0,1);
 		TreeSet<SleepPeriod> spSet = new TreeSet<>(new SleepPeriodSorter());
@@ -115,8 +188,8 @@ public class SleepStats {
 	}
 	
 	public static boolean between(LocalDateTime start, LocalDateTime end, LocalDateTime sp){
-		boolean isBefore = start.isBefore(sp);
-		boolean isAfter = end.isAfter(sp);
+		boolean isBefore = start.isBefore(sp) || start.isEqual(sp);
+		boolean isAfter = end.isAfter(sp) || end.isEqual(sp);
 		return isBefore && isAfter;
 	}
 	
