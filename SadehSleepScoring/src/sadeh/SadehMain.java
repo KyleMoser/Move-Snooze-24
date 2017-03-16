@@ -39,6 +39,7 @@ import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
  *
  */
 public class SadehMain {
+	static PrintStream text_results = null;
 	
 	public static void main(String[] args){
 		String inputPath = args[0];
@@ -46,15 +47,23 @@ public class SadehMain {
 		String assessmentPoint = args[2];
 		
 		try {
-			System.setOut(new PrintStream(new File(outputPath + "\\results.txt")));
+			text_results = new PrintStream(new File(outputPath + "\\results.txt"));
+			PrintStream participantsSkipped = new PrintStream(new File(outputPath + "\\participants_skipped.txt"));
+			
+			System.setOut(text_results);
 			List<ActicalParticipant> participants = new ArrayList<>();
 			
 			try(Stream<Path> paths = Files.walk(Paths.get(inputPath), 1)) {
 			    paths.forEach(filePath -> {
 			        if (Files.isRegularFile(filePath)) {
-			            System.out.println(filePath);
-			            ActicalParticipant p = process(filePath.toFile(), assessmentPoint, outputPath);
-			            participants.add(p);
+			        	System.out.println(filePath);
+			        	ActicalParticipant p = process(filePath.toFile(), assessmentPoint, outputPath);
+			        	
+			        	if (p != null){
+			        		participants.add(p);
+			        	} else{
+			        		participantsSkipped.println("The participant " + getParticipantName(filePath.toFile()) + " was skipped.");
+			        	}
 			        }
 			    });
 			} catch (Exception ex){
@@ -65,6 +74,8 @@ public class SadehMain {
 			ParticipantWorkbook pwb = new ParticipantWorkbook(participants);
 			pwb.create();
 			pwb.write(outputPath + "\\participantData.xlsx");
+			participantsSkipped.flush();
+			participantsSkipped.close();
 		} catch (Exception e){
 			e.printStackTrace();
 			System.out.println(e.getMessage());
@@ -362,9 +373,11 @@ public class SadehMain {
 			
 			return participant;
 		} catch (ParticipantDataParseException e) {
-			System.out.println(e.getMessage());
+			e.printStackTrace(text_results);
+			System.out.println("Exception: " + e.getMessage());
 		} catch (ActicalDataOutputException e) {
-			System.out.println(e.getMessage());
+			e.printStackTrace(text_results);
+			System.out.println("Exception: " + e.getMessage());
 		}
 		
 		return null;

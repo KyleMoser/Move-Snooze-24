@@ -15,6 +15,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -62,7 +64,7 @@ public class ParticipantWorkbook {
 		    		"Percent_24hr_Sleep", "Sedentary_PA", "Light_PA", "MVPA", "Eight_to_Eight"};
 		    createHeader(header, cols);
 		   	int rowIdx = 1; //Row 0 is a header row 
-		    
+		   			    
 		    for (ActicalParticipant p : participants){
 		    	Set<String> dates = p.getDateEpochMap().keySet();
 		    	TreeSet<LocalDate> ldSet = new TreeSet<LocalDate>();
@@ -133,10 +135,11 @@ public class ParticipantWorkbook {
 	    
     	Cell cell8 = row.createCell(col++);
     	CellStyle cellStyle = workbook.createCellStyle();
-    	cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("hh:mm"));
+    	cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("h:mm;@"));
     	if (sleepOnset != null){
+    		String time = sleepOnset.format(formatter);
     		Date jDate = Date.from(sleepOnset.atZone(ZoneId.systemDefault()).toInstant());
-    		cell8.setCellValue(jDate);
+    		cell8.setCellValue(time);
     	} else{
     		Date jDate = null;
     		cell8.setCellValue(jDate);
@@ -146,15 +149,16 @@ public class ParticipantWorkbook {
     	//Sleep offset
     	Cell cell9 = row.createCell(col++);
     	CellStyle cellStyle2 = workbook.createCellStyle();
-    	cellStyle2.setDataFormat(createHelper.createDataFormat().getFormat("hh:mm"));
+    	cellStyle2.setDataFormat(createHelper.createDataFormat().getFormat("h:mm;@"));
     	if (sleepOffset != null){
+    		String time = sleepOffset.format(formatter);
     		Date jDate2 = Date.from(sleepOffset.atZone(ZoneId.systemDefault()).toInstant());
-    		cell9.setCellValue(jDate2);
+    		cell9.setCellValue(time);
     	} else{
     		Date jDate2 = null;
     		cell9.setCellValue(jDate2);
     	}
-    	cell9.setCellStyle(cellStyle2);
+    	//cell9.setCellStyle(cellStyle2);
     	
     	Cell cell10 = row.createCell(col++);
     	if (sleepOnset != null && sleepOffset != null){
