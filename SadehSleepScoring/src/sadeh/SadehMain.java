@@ -9,7 +9,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -19,7 +18,6 @@ import excel.ActicalExcelParser;
 import excel.ActivityThresholdWorkbook;
 import excel.ParticipantDataParseException;
 import excel.ParticipantWorkbook;
-
 import java.util.Set;
 import java.util.stream.Stream;
 import analysis.SleepPeriod;
@@ -40,6 +38,8 @@ import sadeh.SleepAnalysis.SLEEP_PROBABILITY;
  */
 public class SadehMain {
 	static PrintStream text_results = null;
+	static int PRECEDING_CONSECUTIVE_AWAKE = 1;
+	static int SUCCESSIVE_AWAKE_EPOCHS = 5;
 	
 	public static void main(String[] args){
 		String inputPath = args[0];
@@ -171,7 +171,7 @@ public class SadehMain {
 					tempSleepochs = new ArrayList<>();
 				}
 				
-				if (consecutiveAwake >= 5){
+				if (consecutiveAwake >= SUCCESSIVE_AWAKE_EPOCHS){
 					psp.epochs.addAll(additionalSleepochs);
 					hasWakePeriod = true;
 					break;
@@ -197,7 +197,7 @@ public class SadehMain {
 						+ " starting index of " + psp.epochListStartingIndex + " does not match expected index of " + possibleSleepEpochDsIdx);
 			
 			int consecutiveAwake = 0;
-			//work backwards to see if there are 5 consecutive awake epochs before this sleep period
+			//work backwards to see if there are enough consecutive awake epochs before this sleep period
 			for (int i = psp.epochListStartingIndex-1; i >= 0; i--){
 				ActicalEpoch epoch = epochs.get(i);
 				if (!epoch.isAsleep()){
@@ -206,7 +206,7 @@ public class SadehMain {
 					break;
 				}
 				
-				if (consecutiveAwake >= 5){
+				if (consecutiveAwake >= PRECEDING_CONSECUTIVE_AWAKE){
 					SleepPeriod sp = new SleepPeriod(psp.epochs);
 					sleepPeriods.add(sp);
 					break;

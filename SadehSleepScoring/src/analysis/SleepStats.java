@@ -115,7 +115,7 @@ public class SleepStats {
 		if (sleepOnset == null || sleepOffset == null)
 			return -1;
 		
-		return Math.abs(ChronoUnit.MINUTES.between(sleepOnset, sleepOffset));
+		return Math.abs(ChronoUnit.MINUTES.between(sleepOnset, sleepOffset) + 1);
 	}
 	
 	public long calculateTotalSleepTime(List<ActicalEpoch> epochs){
@@ -239,7 +239,7 @@ public class SleepStats {
 		//See if the person woke up the next day from 6AM to 9AM
 		while (reverseIt.hasNext()){
 			SleepPeriod sp = reverseIt.next();
-			if (between(ldtStartInterval, ldtEndInterval, sp.getEnd())){
+			if (between(ldtStartInterval, ldtEndInterval, sp.getStart())){ //these used to be sp.getEnd()
 				return sp;
 			}
 		}
@@ -250,7 +250,7 @@ public class SleepStats {
 		//See if the person woke up the next day from 4AM to 9AM
 		while (reverseIt.hasNext()){
 			SleepPeriod sp = reverseIt.next();
-			if (between(ldtStartInterval, ldtEndInterval, sp.getEnd())){
+			if (between(ldtStartInterval, ldtEndInterval, sp.getStart())){
 				return sp;
 			}
 		}
@@ -261,7 +261,7 @@ public class SleepStats {
 		//See if the person woke up the next day from 4AM to 10AM
 		while (reverseIt.hasNext()){
 			SleepPeriod sp = reverseIt.next();
-			if (between(ldtStartInterval, ldtEndInterval, sp.getEnd())){
+			if (between(ldtStartInterval, ldtEndInterval, sp.getStart())){
 				return sp;
 			}
 		}
