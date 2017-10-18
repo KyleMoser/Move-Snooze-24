@@ -1,5 +1,7 @@
 package sadeh;
 
+import ema.*;
+import excel.*;
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -13,9 +15,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
+
 import excel.ActicalDataOutputException;
 import excel.ActicalExcelParser;
 import excel.ActivityThresholdWorkbook;
+import excel.EMAExcelParser;
+import ema.EMAPrompt;
 import excel.ParticipantDataParseException;
 import excel.ParticipantWorkbook;
 import java.util.Set;
@@ -45,6 +51,29 @@ public class SadehMain {
 		String inputPath = args[0];
 		String outputPath = args[1];
 		String assessmentPoint = args[2];
+		String emaPath = args[3];
+		String directive = args[4];
+		List<EMAPrompt> prompts = null;
+		List<ActicalParticipant> emaAnalysisParticipants = null;
+		PrintStream ema_results = null;
+		
+		if (directive.equals("PARSE_EMA")){
+			try{
+				ema_results = new PrintStream(new File(outputPath + "\\emaresults.txt"));
+				System.setOut(ema_results);
+				prompts =
+						EMAExcelParser.parseEcologicalMomentaryAssessment(Paths.get(emaPath).toFile());
+				for (EMAPrompt prompt : prompts){
+					System.out.println(prompt.toString());
+				}
+				
+				Collections.sort(prompts, (a, b) -> a.getDateTime().compareTo(b.getDateTime()));
+			} catch (Exception e){
+				e.printStackTrace();
+				System.out.println("Error parsing EMA input file. Error: " + e.getMessage());
+				return;
+			}
+		}
 		
 		try {
 			text_results = new PrintStream(new File(outputPath + "\\results.txt"));
@@ -76,10 +105,68 @@ public class SadehMain {
 			pwb.write(outputPath + "\\participantData.xlsx");
 			participantsSkipped.flush();
 			participantsSkipped.close();
+			emaAnalysisParticipants = participants;
 		} catch (Exception e){
 			e.printStackTrace();
 			System.out.println(e.getMessage());
 		}
+		
+		System.setOut(ema_results);
+		HashMap<String, List<EMAPrompt>> emaMap = createEmaPromptMap(prompts);
+		
+		//Associate the EMA prompt data with the correct Actical Participant.
+		for (ActicalParticipant p : emaAnalysisParticipants){
+			if (emaMap.containsKey(p.getParticipant())){
+				System.out.println("Actical participant " + p.getParticipant() + " has EMA data.");
+				p.setEmaPrompts(emaMap.get(p.getParticipant()));
+			} else{
+				System.out.println("Actical participant " + p.getParticipant() + " does not have any EMA data.");
+			}
+		}
+		
+		//Check if there are any EMA participants that do not have any Actical data
+		for (String participant : emaMap.keySet()){
+			Optional<ActicalParticipant> oap = 
+					emaAnalysisParticipants.stream().filter(p -> p.getParticipant().equals(participant)).findFirst();
+			if (!oap.isPresent()){
+				System.out.println("The EMAPrompt participant " + participant + " does not have any Actical data.");
+			}
+		}
+		
+		try{
+			List<EMAResult> allResults = new ArrayList<>();
+			for (ActicalParticipant p : emaAnalysisParticipants){
+				p.analyzeEmaData(p.getEmaPrompts());
+				allResults.addAll(p.results);
+			}
+			
+			EMAWorkbook emaWb = new EMAWorkbook(allResults);
+			emaWb.create();
+			emaWb.write(outputPath + "\\emaData.xlsx");
+		} catch (Exception e){
+			e.printStackTrace();
+			System.out.println("FATAL ERROR ANALYZING EMA DATA." + e.getMessage());
+		}
+	}
+	
+	public static HashMap<String, List<EMAPrompt>> createEmaPromptMap(List<EMAPrompt> prompts){
+		HashMap<String, List<EMAPrompt>> map = new HashMap<String, List<EMAPrompt>>();
+		
+		for (EMAPrompt prompt : prompts){
+			String participant = prompt.getParticipant();
+			List<EMAPrompt> currentParticipantPrompts = null;
+	
+			if (map.containsKey(participant)){
+				currentParticipantPrompts = map.get(participant);
+			} else{
+				currentParticipantPrompts = new ArrayList<EMAPrompt>();
+			}
+			
+			currentParticipantPrompts.add(prompt);
+			map.put(participant, currentParticipantPrompts);
+		}
+		
+		return map;
 	}
 	
 	private static String getParticipantName(File file){

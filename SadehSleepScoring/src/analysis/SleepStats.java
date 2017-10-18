@@ -1,5 +1,6 @@
 package analysis;
 
+import ema.EMAPrompt;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -37,6 +38,10 @@ public class SleepStats {
 		
 		if (offset != null)
 			sleepOffset = offset.getEnd();
+	}
+	
+	public boolean isSameEpoch(ActicalEpoch acticalEpoch, EMAPrompt emaEpoch){
+		return acticalEpoch.getDateTime().isEqual(emaEpoch.getDateTime());
 	}
 	
 	public long getNightSleepPeriod() {
