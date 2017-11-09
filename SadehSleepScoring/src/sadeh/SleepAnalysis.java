@@ -32,6 +32,8 @@ public class SleepAnalysis {
 	
 	public static ACTIVITY_LEVEL getActivityThreshold(ActicalEpoch epoch) 
 			throws ParticipantDataParseException{
+		boolean isToddler = false;
+		
 		boolean asleep = epoch.isAsleep();
 		boolean daytime = epoch.isDaytime();
 		int level = epoch.getActivityLevel();
@@ -43,15 +45,28 @@ public class SleepAnalysis {
 			}
 		}
 		
-		if (level >= 0 && level <= 40){
-			return ACTIVITY_LEVEL.SEDENTARY;
-		} else if (level >= 41 && level <= 2200){
-			return ACTIVITY_LEVEL.LIGHT;
-		} else if (level >= 2201){
-			return ACTIVITY_LEVEL.MVPA;
-		} else{
-			throw new ParticipantDataParseException("Activity level of " + level + " is not within expected range"
-					+ " for paticipant " + epoch.getParticipant());
+		if (isToddler){
+			if (level >= 0 && level <= 40){
+				return ACTIVITY_LEVEL.SEDENTARY;
+			} else if (level >= 41 && level <= 2200){
+				return ACTIVITY_LEVEL.LIGHT;
+			} else if (level >= 2201){
+				return ACTIVITY_LEVEL.MVPA;
+			} else{
+				throw new ParticipantDataParseException("Activity level of " + level + " is not within expected range"
+						+ " for paticipant " + epoch.getParticipant());
+			}
+		} else{ //adults have their activity level measured differently
+			if (level >= 0 && level <= 40){
+				return ACTIVITY_LEVEL.SEDENTARY;
+			} else if (level >= 41 && level <= 3200){
+				return ACTIVITY_LEVEL.LIGHT;
+			} else if (level >= 3201){
+				return ACTIVITY_LEVEL.MVPA;
+			} else{
+				throw new ParticipantDataParseException("Activity level of " + level + " is not within expected range"
+						+ " for paticipant " + epoch.getParticipant());
+			}
 		}
 	}
 	

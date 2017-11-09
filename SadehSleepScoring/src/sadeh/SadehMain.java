@@ -51,13 +51,19 @@ public class SadehMain {
 		String inputPath = args[0];
 		String outputPath = args[1];
 		String assessmentPoint = args[2];
-		String emaPath = args[3];
-		String directive = args[4];
+		String emaPath = null;
+		String directive = null;
+		
+		if (args.length > 3){
+			emaPath = args[3];
+			directive = args[4];
+		}
+		
 		List<EMAPrompt> prompts = null;
 		List<ActicalParticipant> emaAnalysisParticipants = null;
 		PrintStream ema_results = null;
 		
-		if (directive.equals("PARSE_EMA")){
+		if (directive != null && directive.equals("PARSE_EMA")){
 			try{
 				ema_results = new PrintStream(new File(outputPath + "\\emaresults.txt"));
 				System.setOut(ema_results);
@@ -111,41 +117,43 @@ public class SadehMain {
 			System.out.println(e.getMessage());
 		}
 		
-		System.setOut(ema_results);
-		HashMap<String, List<EMAPrompt>> emaMap = createEmaPromptMap(prompts);
-		
-		//Associate the EMA prompt data with the correct Actical Participant.
-		for (ActicalParticipant p : emaAnalysisParticipants){
-			if (emaMap.containsKey(p.getParticipant())){
-				System.out.println("Actical participant " + p.getParticipant() + " has EMA data.");
-				p.setEmaPrompts(emaMap.get(p.getParticipant()));
-			} else{
-				System.out.println("Actical participant " + p.getParticipant() + " does not have any EMA data.");
-			}
-		}
-		
-		//Check if there are any EMA participants that do not have any Actical data
-		for (String participant : emaMap.keySet()){
-			Optional<ActicalParticipant> oap = 
-					emaAnalysisParticipants.stream().filter(p -> p.getParticipant().equals(participant)).findFirst();
-			if (!oap.isPresent()){
-				System.out.println("The EMAPrompt participant " + participant + " does not have any Actical data.");
-			}
-		}
-		
-		try{
-			List<EMAResult> allResults = new ArrayList<>();
+		if (directive != null && directive.equals("PARSE_EMA")){
+			System.setOut(ema_results);
+			HashMap<String, List<EMAPrompt>> emaMap = createEmaPromptMap(prompts);
+			
+			//Associate the EMA prompt data with the correct Actical Participant.
 			for (ActicalParticipant p : emaAnalysisParticipants){
-				p.analyzeEmaData(p.getEmaPrompts());
-				allResults.addAll(p.results);
+				if (emaMap.containsKey(p.getParticipant())){
+					System.out.println("Actical participant " + p.getParticipant() + " has EMA data.");
+					p.setEmaPrompts(emaMap.get(p.getParticipant()));
+				} else{
+					System.out.println("Actical participant " + p.getParticipant() + " does not have any EMA data.");
+				}
 			}
 			
-			EMAWorkbook emaWb = new EMAWorkbook(allResults);
-			emaWb.create();
-			emaWb.write(outputPath + "\\emaData.xlsx");
-		} catch (Exception e){
-			e.printStackTrace();
-			System.out.println("FATAL ERROR ANALYZING EMA DATA." + e.getMessage());
+			//Check if there are any EMA participants that do not have any Actical data
+			for (String participant : emaMap.keySet()){
+				Optional<ActicalParticipant> oap = 
+						emaAnalysisParticipants.stream().filter(p -> p.getParticipant().equals(participant)).findFirst();
+				if (!oap.isPresent()){
+					System.out.println("The EMAPrompt participant " + participant + " does not have any Actical data.");
+				}
+			}
+			
+			try{
+				List<EMAResult> allResults = new ArrayList<>();
+				for (ActicalParticipant p : emaAnalysisParticipants){
+					p.analyzeEmaData(p.getEmaPrompts());
+					allResults.addAll(p.results);
+				}
+				
+				EMAWorkbook emaWb = new EMAWorkbook(allResults);
+				emaWb.create();
+				emaWb.write(outputPath + "\\emaData.xlsx");
+			} catch (Exception e){
+				e.printStackTrace();
+				System.out.println("FATAL ERROR ANALYZING EMA DATA." + e.getMessage());
+			}
 		}
 	}
 	
