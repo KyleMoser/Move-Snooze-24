@@ -5,24 +5,15 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-
-import org.apache.poi.hssf.usermodel.HSSFCell;
-import org.apache.poi.hssf.usermodel.HSSFRow;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.EncryptedDocumentException;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 
 import sadeh.ActicalEpoch;
 
@@ -55,18 +46,18 @@ public class ActicalExcelParser {
 	public static List<ActicalEpoch> parseSadehExcelDocument(File excel)
 			throws ParticipantDataParseException {
 		List<ActicalEpoch> epochs = new ArrayList<>();
-		HSSFWorkbook wb = null;
+		Workbook wb = null;
 		
 		// Parse the sleep data from the body rows of the excel document
-		HSSFRow row = null;
+		Row row = null;
 		String time = null; // the time an epoch of activity data was collected
 		int rowIdx = BEGIN_DATA_ROW_INDEX;
 		int totalEpochs = 0;
 
 		try {
 			FileInputStream fis = new FileInputStream(excel);
-			wb = new HSSFWorkbook(fis);
-			HSSFSheet ws = wb.getSheet(actigraphWorkbook);
+			wb = WorkbookFactory.create(fis);
+			Sheet ws = wb.getSheet(actigraphWorkbook);
 			
 			// The epoch data is in non-contiguous columns with known names, this finds the columns indices.
 			List<ActigraphDataHeader> headers = parseHeader(ws);
@@ -80,7 +71,7 @@ public class ActicalExcelParser {
 					if (time != null) {
 
 						for (ActigraphDataHeader header : headers) {
-							HSSFCell cell = row.getCell(header.getColumnIndex());
+							Cell cell = row.getCell(header.getColumnIndex());
 							if (!isCellEmpty(cell)) {
 								String dataCollectionDay = header.getDayOfWeek();
 								int activityLevel = (int) cell.getNumericCellValue();
@@ -106,6 +97,12 @@ public class ActicalExcelParser {
 			+ " cannot be opened, it must be manually processed.");
 		} catch (IOException io) {
 			throw new ParticipantDataParseException("IO error occurred processing the file " + excel.getAbsolutePath()
+			+ ", it must be manually processed.");
+		} catch (InvalidFormatException io) {
+			throw new ParticipantDataParseException("Invalid format processing the file " + excel.getAbsolutePath()
+			+ ", it must be manually processed.");
+		} catch (EncryptedDocumentException ex){
+			throw new ParticipantDataParseException("Encrypted document error occurred processing the file " + excel.getAbsolutePath()
 			+ ", it must be manually processed.");
 		} finally {
 			if (wb != null)
@@ -135,7 +132,7 @@ public class ActicalExcelParser {
 	}
 
 	@SuppressWarnings("deprecation")
-	public static boolean isCellEmpty(final HSSFCell cell) {
+	public static boolean isCellEmpty(final Cell cell) {
 		if (cell == null || cell.getCellType() == Cell.CELL_TYPE_BLANK) {
 			return true;
 		}
@@ -155,8 +152,8 @@ public class ActicalExcelParser {
 	 * @param row
 	 * @return
 	 */
-	private static String parseTimeActivityRecorded(HSSFRow row) {
-		HSSFCell cell = row.getCell(EPOCH_TIME_INDEX);
+	private static String parseTimeActivityRecorded(Row row) {
+		Cell cell = row.getCell(EPOCH_TIME_INDEX);
 		Date date = parseDate(cell);
 
 		if (date != null) {
@@ -166,7 +163,7 @@ public class ActicalExcelParser {
 		}
 	}
 
-	private static Date parseDate(HSSFCell cell) {
+	private static Date parseDate(Cell cell) {
 		if (!isCellEmpty(cell)) {
 			return cell.getDateCellValue();
 		} else {
@@ -174,18 +171,18 @@ public class ActicalExcelParser {
 		}
 	}
 
-	private static List<ActigraphDataHeader> parseHeader(HSSFSheet ws) {
+	private static List<ActigraphDataHeader> parseHeader(Sheet ws) {
 		List<ActigraphDataHeader> headers = new ArrayList<>(8); // There should
 																// be no more
 																// than 8
 																// columns
-		HSSFRow row = ws.getRow(HEADER_ROW_INDEX);
-		HSSFRow dateRow = ws.getRow(BEGIN_DATA_ROW_INDEX);
+		Row row = ws.getRow(HEADER_ROW_INDEX);
+		Row dateRow = ws.getRow(BEGIN_DATA_ROW_INDEX);
 
 		int maxColIdx = 26; // There cannot be headers past this column
 
 		for (int i = 0; i < maxColIdx; i++) {
-			HSSFCell cell = row.getCell(i);
+			Cell cell = row.getCell(i);
 			if (cell != null) {
 				try {
 					String value = cell.getStringCellValue();
